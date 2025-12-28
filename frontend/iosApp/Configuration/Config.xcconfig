@@ -1,0 +1,7 @@
+TEAM_ID=
+
+PRODUCT_NAME=AIGymPoseEstimationApp
+PRODUCT_BUNDLE_IDENTIFIER=com.pragyan.aigymposeestimationapp.AIGymPoseEstimationApp$(TEAM_ID)
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=1.0
