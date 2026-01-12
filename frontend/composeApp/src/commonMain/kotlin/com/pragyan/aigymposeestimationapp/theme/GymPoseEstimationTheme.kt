@@ -38,7 +38,7 @@ fun GymPoseEstimationTheme(
     MaterialTheme(
         colorScheme = DarkColorTheme,
         content = content,
-        typography = AppTypography,
+        typography = appTypography(),
         shapes = AppShapes
     )
 }

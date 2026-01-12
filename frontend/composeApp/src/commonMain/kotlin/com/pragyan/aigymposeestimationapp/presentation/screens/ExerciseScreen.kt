@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.pragyan.aigymposeestimationapp.presentation.components.BottomNavBar
+import com.pragyan.aigymposeestimationapp.presentation.components.navigation.TopNavBar
+import com.pragyan.aigymposeestimationapp.theme.GymPoseEstimationTheme
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
@@ -20,14 +22,15 @@ fun ExerciseScreen(
     modifier: Modifier = Modifier,
     navController: NavController
 ) {
-    Scaffold (
+    Scaffold(
         modifier = modifier,
-        bottomBar = { BottomNavBar(navController = navController) }
-    ){ innerPadding ->
-        Surface (
+        bottomBar = { BottomNavBar(navController = navController) },
+        topBar = { TopNavBar(title = "Exercises") }
+    ) { innerPadding ->
+        Surface(
             modifier = Modifier.padding(innerPadding),
             color = MaterialTheme.colorScheme.background
-        ){
+        ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Exercise Screen")
             }
@@ -38,6 +41,8 @@ fun ExerciseScreen(
 @Preview(showBackground = true)
 @Composable
 fun ExerciseScreenPreview() {
-    val navController = rememberNavController()
-    ExerciseScreen(navController = navController)
+    GymPoseEstimationTheme {
+        val navController = rememberNavController()
+        ExerciseScreen(navController = navController)
+    }
 }

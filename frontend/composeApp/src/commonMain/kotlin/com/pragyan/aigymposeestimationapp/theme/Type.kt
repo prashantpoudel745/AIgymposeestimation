@@ -1,25 +1,34 @@
 package com.pragyan.aigymposeestimationapp.theme
 
 import androidx.compose.material3.Typography
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.Composable
 
-val AppTypography = Typography(
-    headlineLarge = TextStyle(
-        fontSize = 22.sp,
-        fontWeight = FontWeight.Bold
-    ),
-    titleMedium = TextStyle(
-        fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold
-    ),
-    bodyMedium = TextStyle(
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Normal
-    ),
-    labelSmall = TextStyle(
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Medium
-    )
-)
+// Coping the default Material 3 typography and override only the fontFamily.
+@Composable
+fun appTypography(): Typography {
+    val lexend = LexendFontFamily()
+
+    return Typography().run {
+        copy(
+            displayLarge = displayLarge.copy(fontFamily = lexend),
+            displayMedium = displayMedium.copy(fontFamily = lexend),
+            displaySmall = displaySmall.copy(fontFamily = lexend),
+
+            headlineLarge = headlineLarge.copy(fontFamily = lexend),
+            headlineMedium = headlineMedium.copy(fontFamily = lexend),
+            headlineSmall = headlineSmall.copy(fontFamily = lexend),
+
+            titleLarge = titleLarge.copy(fontFamily = lexend),
+            titleMedium = titleMedium.copy(fontFamily = lexend),
+            titleSmall = titleSmall.copy(fontFamily = lexend),
+
+            bodyLarge = bodyLarge.copy(fontFamily = lexend),
+            bodyMedium = bodyMedium.copy(fontFamily = lexend),
+            bodySmall = bodySmall.copy(fontFamily = lexend),
+
+            labelLarge = labelLarge.copy(fontFamily = lexend),
+            labelMedium = labelMedium.copy(fontFamily = lexend),
+            labelSmall = labelSmall.copy(fontFamily = lexend),
+        )
+    }
+}

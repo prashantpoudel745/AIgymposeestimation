@@ -10,9 +10,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.pragyan.aigymposeestimationapp.presentation.components.BottomNavBar
+import com.pragyan.aigymposeestimationapp.presentation.components.navigation.TopNavBar
+import com.pragyan.aigymposeestimationapp.theme.GymPoseEstimationTheme
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
@@ -23,6 +26,7 @@ fun DashboardScreen(
     Scaffold (
         modifier = modifier,
         bottomBar = { BottomNavBar(navController = navController) },
+        topBar = { TopNavBar(title = "Dashboard") }
     ){ innerPadding ->
         Surface (
             modifier = Modifier.padding(innerPadding),
@@ -36,9 +40,11 @@ fun DashboardScreen(
 
 }
 
-@Preview(showBackground = true)
+@Preview
 @Composable
 fun DashboardScreenPreview() {
-    val navController = rememberNavController()
-    DashboardScreen(navController = navController)
+    GymPoseEstimationTheme {
+        val navController = rememberNavController()
+        DashboardScreen(navController = navController)
+    }
 }
