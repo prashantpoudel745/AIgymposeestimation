@@ -4,12 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +22,8 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 @Composable
 fun BottomNavBar(navController: NavController) {
     BottomAppBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         actions = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -43,7 +46,7 @@ fun BottomNavBar(navController: NavController) {
                     }
                 ) {
                     Icon(
-                        Icons.Filled.FitnessCenter,
+                        Icons.Outlined.FitnessCenter,
                         contentDescription = "Fitness icon"
                     )
                 }
@@ -51,7 +54,7 @@ fun BottomNavBar(navController: NavController) {
                     navController.navigate(route = NavigationScreens.SettingsScreen.name)
                 }) {
                     Icon(
-                        Icons.Filled.Settings,
+                        Icons.Outlined.Settings,
                         contentDescription = "Settings icon",
                     )
                 }
