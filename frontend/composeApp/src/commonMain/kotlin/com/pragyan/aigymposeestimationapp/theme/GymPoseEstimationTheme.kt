@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 val DarkColorTheme = darkColorScheme(
     primary = PrimaryGreen,
     secondary = SecondaryGreen,
+    tertiary = TertiaryGreen,
     background = DarkBackground,
     surface = DarkSurface,
     onPrimary = Color.White,

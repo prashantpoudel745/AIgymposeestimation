@@ -1,4 +1,4 @@
-package com.pragyan.aigymposeestimationapp.presentation.components.navigation
+package com.pragyan.aigymposeestimationapp.presentation.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -72,7 +72,6 @@ fun TopNavBar(title: String) {
 @Composable
 fun TopBarPreview() {
     GymPoseEstimationTheme {
-        val navController = rememberNavController()
         TopNavBar("Title")
     }
 }
