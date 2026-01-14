@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.pragyan.aigymposeestimationapp.presentation.components.BottomNavBar
-import com.pragyan.aigymposeestimationapp.presentation.components.navigation.TopNavBar
+import com.pragyan.aigymposeestimationapp.presentation.components.TopNavBar
 import com.pragyan.aigymposeestimationapp.theme.GymPoseEstimationTheme
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
