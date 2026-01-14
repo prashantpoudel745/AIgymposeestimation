@@ -6,9 +6,11 @@ import androidx.compose.ui.graphics.Color
 val DarkBackground = Color(0xFF121714)
 val DarkSurface = Color(0xFF1C2621)
 
+
 // Primary Accent (Green)
 val PrimaryGreen = Color(0xFF4CAF7D)
 val SecondaryGreen = Color(0xFF2E7D5B)
+val TertiaryGreen = Color(0xFF29382E)
 
 // Text
 val TextPrimary = Color(0xFFFFFFFF)
