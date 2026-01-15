@@ -2,6 +2,7 @@ package com.pragyan.aigymposeestimationapp.presentation.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,8 @@ import androidx.navigation.compose.rememberNavController
 import com.pragyan.aigymposeestimationapp.domain.model.getExerciseSampleData
 import com.pragyan.aigymposeestimationapp.presentation.components.BottomNavBar
 import com.pragyan.aigymposeestimationapp.presentation.components.TopNavBar
+import com.pragyan.aigymposeestimationapp.presentation.navigation.LocalExerciseNavState
+import com.pragyan.aigymposeestimationapp.presentation.navigation.NavigationScreens
 import com.pragyan.aigymposeestimationapp.theme.GymPoseEstimationTheme
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -36,6 +39,8 @@ fun ExerciseScreen(
     navController: NavController
 ) {
     val exercises = getExerciseSampleData()
+    val exerciseNavState = LocalExerciseNavState.current
+
     Scaffold(
         modifier = modifier,
         bottomBar = { BottomNavBar(navController = navController) },
@@ -66,6 +71,10 @@ fun ExerciseScreen(
                             ),
                             modifier = Modifier
                                 .size(width = 175.dp, height = 187.dp)
+                                .clickable {
+                                    exerciseNavState.selectExercise(exercise)
+                                    navController.navigate(NavigationScreens.UploadScreen.name)
+                                }
                         ) {
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)

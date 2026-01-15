@@ -1,7 +1,8 @@
-package com.pragyan.aigymposeestimationapp.presentation.components.navigation
+package com.pragyan.aigymposeestimationapp.presentation.navigation
 
 enum class NavigationScreens {
     DashboardScreen,
     ExerciseScreen,
     SettingsScreen,
+    UploadScreen,
 }
