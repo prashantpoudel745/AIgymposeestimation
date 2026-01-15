@@ -34,6 +34,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.pragyan.aigymposeestimationapp.presentation.components.BottomNavBar
 import com.pragyan.aigymposeestimationapp.presentation.components.TopNavBarWithIcon
+import com.pragyan.aigymposeestimationapp.presentation.navigation.LocalExerciseNavState
 import com.pragyan.aigymposeestimationapp.theme.GymPoseEstimationTheme
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -44,10 +45,11 @@ fun UploadScreen(
 ) {
     var uploadProgress by remember { mutableStateOf(0.5f) }
     var isUploading by remember { mutableStateOf(true) }
+    val exercise = LocalExerciseNavState.current.selectedExercise
     Scaffold(
         modifier = modifier,
         bottomBar = { BottomNavBar(navController = navController) },
-        topBar = { TopNavBarWithIcon(title = "Bicep Curls", navController = navController)}
+        topBar = { TopNavBarWithIcon(title = exercise?.exerciseName ?: "Upload Exercise", navController = navController)}
     ) { innerPadding ->
         Surface(
             modifier = Modifier.padding(innerPadding),
@@ -64,7 +66,7 @@ fun UploadScreen(
                 ) {
                     // Header Text
                     Text(
-                        text = "Upload a video of your squat to receive\npersonalized feedback on your form.",
+                        text = "Upload a video of your ${(exercise?.exerciseName)?.lowercase()} to receive\npersonalized feedback on your form.",
                         fontSize = 16.sp,
                         textAlign = TextAlign.Center,
                         lineHeight = 24.sp
