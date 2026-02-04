@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.mohamedrejeb.calf.io.KmpFile
+import com.mohamedrejeb.calf.io.getName
 import com.mohamedrejeb.calf.picker.FilePickerSelectionMode
 import com.mohamedrejeb.calf.picker.FilePickerFileType
 import com.mohamedrejeb.calf.picker.rememberFilePickerLauncher
@@ -41,9 +42,7 @@ import com.pragyan.aigymposeestimationapp.presentation.components.BottomNavBar
 import com.pragyan.aigymposeestimationapp.presentation.components.TopNavBarWithIcon
 import com.pragyan.aigymposeestimationapp.presentation.navigation.LocalExerciseNavState
 import com.pragyan.aigymposeestimationapp.theme.GymPoseEstimationTheme
-import io.github.aakira.napier.Napier
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import kotlin.math.log
 
 @Composable
 fun UploadScreen(
@@ -57,6 +56,7 @@ fun UploadScreen(
     val scope = rememberCoroutineScope()
 
     var selectedFile by remember { mutableStateOf<KmpFile?>(null) }
+    val isFileSelected = selectedFile != null
 
     val pickerLauncher = rememberFilePickerLauncher(
         type = FilePickerFileType.Video,
@@ -96,7 +96,7 @@ fun UploadScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
+//                            .height(200.dp)
                             .border(
                                 width = 2.dp,
                                 color = Color(0xFF2D4D4D),
@@ -117,7 +117,7 @@ fun UploadScreen(
                             )
 
                             Text(
-                                text = "Tap to choose a video from your library",
+                                text = if (isFileSelected) "Upload video to analyze the form" else "Tap to choose a video from your library",
                                 color = Color(0xFF7A9999),
                                 fontSize = 14.sp,
                                 textAlign = TextAlign.Center
@@ -125,8 +125,10 @@ fun UploadScreen(
 
                             Button(
                                 onClick = {
-                                    pickerLauncher.launch()
-                                    Napier.d { "Selected File: $selectedFile" }
+                                    if (!isFileSelected) {
+                                        pickerLauncher.launch()
+                                    } else {
+                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.secondary
@@ -135,11 +137,31 @@ fun UploadScreen(
                                 modifier = Modifier.padding(top = 8.dp)
                             ) {
                                 Text(
-                                    text = "Choose Video",
+                                    text = if (!isFileSelected) "Choose Video" else "Upload Video",
                                     color = Color.White,
                                     fontSize = 16.sp,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                                 )
+                            }
+
+                            if (isFileSelected) {
+                                Button(
+                                    onClick = {
+                                        selectedFile = null
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.padding(top = 8.dp)
+                                ) {
+                                    Text(
+                                        text = "Cancel",
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                    )
+                                }
                             }
                         }
                     }
