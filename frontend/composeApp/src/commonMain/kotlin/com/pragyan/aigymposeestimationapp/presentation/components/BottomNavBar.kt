@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.pragyan.aigymposeestimationapp.presentation.components.navigation.NavigationScreens
+import com.pragyan.aigymposeestimationapp.presentation.navigation.NavigationScreens
 import com.pragyan.aigymposeestimationapp.theme.GymPoseEstimationTheme
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
