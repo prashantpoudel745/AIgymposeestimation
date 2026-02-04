@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,11 +33,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.mohamedrejeb.calf.io.KmpFile
+import com.mohamedrejeb.calf.picker.FilePickerSelectionMode
+import com.mohamedrejeb.calf.picker.FilePickerFileType
+import com.mohamedrejeb.calf.picker.rememberFilePickerLauncher
 import com.pragyan.aigymposeestimationapp.presentation.components.BottomNavBar
 import com.pragyan.aigymposeestimationapp.presentation.components.TopNavBarWithIcon
 import com.pragyan.aigymposeestimationapp.presentation.navigation.LocalExerciseNavState
 import com.pragyan.aigymposeestimationapp.theme.GymPoseEstimationTheme
+import io.github.aakira.napier.Napier
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import kotlin.math.log
 
 @Composable
 fun UploadScreen(
@@ -46,6 +53,19 @@ fun UploadScreen(
     var uploadProgress by remember { mutableStateOf(0.5f) }
     var isUploading by remember { mutableStateOf(true) }
     val exercise = LocalExerciseNavState.current.selectedExercise
+
+    val scope = rememberCoroutineScope()
+
+    var selectedFile by remember { mutableStateOf<KmpFile?>(null) }
+
+    val pickerLauncher = rememberFilePickerLauncher(
+        type = FilePickerFileType.Video,
+        selectionMode = FilePickerSelectionMode.Single,
+        onResult = { files ->
+            selectedFile = files.firstOrNull()
+        }
+    )
+
     Scaffold(
         modifier = modifier,
         bottomBar = { BottomNavBar(navController = navController) },
@@ -104,7 +124,10 @@ fun UploadScreen(
                             )
 
                             Button(
-                                onClick = { /* Handle video selection */ },
+                                onClick = {
+                                    pickerLauncher.launch()
+                                    Napier.d { "Selected File: $selectedFile" }
+                                },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.secondary
                                 ),

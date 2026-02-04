@@ -42,6 +42,10 @@ kotlin {
 
             implementation(libs.navigation.compose)
             implementation(compose.materialIconsExtended)
+
+            implementation(libs.calf.file.picker)
+            implementation(libs.napier)
+
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
