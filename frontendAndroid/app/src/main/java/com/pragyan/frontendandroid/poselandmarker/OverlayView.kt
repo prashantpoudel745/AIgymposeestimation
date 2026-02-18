@@ -40,6 +40,8 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
     private var scaleFactor: Float = 1f
     private var imageWidth: Int = 1
     private var imageHeight: Int = 1
+    private var offsetX: Float = 0f
+    private var offsetY: Float = 0f
 
     init {
         initPaints()
@@ -70,18 +72,18 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
             for(landmark in poseLandmarkerResult.landmarks()) {
                 for(normalizedLandmark in landmark) {
                     canvas.drawPoint(
-                        normalizedLandmark.x() * imageWidth * scaleFactor,
-                        normalizedLandmark.y() * imageHeight * scaleFactor,
+                        (1f - normalizedLandmark.x()) * imageWidth * scaleFactor + offsetX, // Mirror the X coordinate
+                        normalizedLandmark.y() * imageHeight * scaleFactor + offsetY,
                         pointPaint
                     )
                 }
 
                 PoseLandmarker.POSE_LANDMARKS.forEach {
                     canvas.drawLine(
-                        poseLandmarkerResult.landmarks().get(0).get(it!!.start()).x() * imageWidth * scaleFactor,
-                        poseLandmarkerResult.landmarks().get(0).get(it.start()).y() * imageHeight * scaleFactor,
-                        poseLandmarkerResult.landmarks().get(0).get(it.end()).x() * imageWidth * scaleFactor,
-                        poseLandmarkerResult.landmarks().get(0).get(it.end()).y() * imageHeight * scaleFactor,
+                        (1f - poseLandmarkerResult.landmarks()[0][it!!.start()].x()) * imageWidth * scaleFactor + offsetX,
+                        poseLandmarkerResult.landmarks()[0][it.start()].y() * imageHeight * scaleFactor + offsetY,
+                        (1f - poseLandmarkerResult.landmarks()[0][it.end()].x()) * imageWidth * scaleFactor + offsetX,
+                        poseLandmarkerResult.landmarks()[0][it.end()].y() * imageHeight * scaleFactor + offsetY,
                         linePaint)
                 }
             }
@@ -99,16 +101,18 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
         this.imageHeight = imageHeight
         this.imageWidth = imageWidth
 
-        scaleFactor = when (runningMode) {
+        when (runningMode) {
             RunningMode.IMAGE,
             RunningMode.VIDEO -> {
-                min(width * 1f / imageWidth, height * 1f / imageHeight)
+                scaleFactor = min(width * 1f / imageWidth, height * 1f / imageHeight)
             }
             RunningMode.LIVE_STREAM -> {
                 // PreviewView is in FILL_START mode. So we need to scale up the
                 // landmarks to match with the size that the captured images will be
                 // displayed.
-                max(width * 1f / imageWidth, height * 1f / imageHeight)
+                scaleFactor = max(width * 1f / imageWidth, height * 1f / imageHeight)
+                offsetX = 0f  // FILL_START anchors to left
+                offsetY = 0f  // FILL_START anchors to top
             }
         }
         invalidate()

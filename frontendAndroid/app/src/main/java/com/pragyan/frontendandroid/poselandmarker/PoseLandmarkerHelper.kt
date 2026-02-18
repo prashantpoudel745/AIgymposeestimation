@@ -82,7 +82,7 @@ class PoseLandmarkerHelper(
             }
         }
 
-        val modelName = "pose_landmarker_full.task"
+        val modelName = "pose_landmarker_lite.task"
 
         baseOptionBuilder.setModelAssetPath(modelName)
 
@@ -101,11 +101,11 @@ class PoseLandmarkerHelper(
                     .setRunningMode(runningMode)
 
             // The ResultListener and ErrorListener only use for LIVE_STREAM mode.
-            if (runningMode == RunningMode.LIVE_STREAM) {
-                optionsBuilder
-                    .setResultListener(this::returnLivestreamResult)
-                    .setErrorListener(this::returnLivestreamError)
-            }
+//            if (runningMode == RunningMode.LIVE_STREAM) {
+//                optionsBuilder
+//                    .setResultListener(this::returnLivestreamResult)
+//                    .setErrorListener(this::returnLivestreamError)
+//            }
 
             val options = optionsBuilder.build()
             poseLandmarker =
