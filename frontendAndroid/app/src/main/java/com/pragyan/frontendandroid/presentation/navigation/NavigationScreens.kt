@@ -5,4 +5,5 @@ enum class NavigationScreens {
     ExerciseScreen,
     SettingsScreen,
     UploadScreen,
+    CameraScreen
 }

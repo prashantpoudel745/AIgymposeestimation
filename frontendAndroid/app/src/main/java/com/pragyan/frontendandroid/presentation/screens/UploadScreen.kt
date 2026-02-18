@@ -37,6 +37,7 @@ import androidx.navigation.compose.rememberNavController
 import com.pragyan.frontendandroid.presentation.navigation.LocalExerciseNavState
 import com.pragyan.frontendandroid.presentation.components.BottomNavBar
 import com.pragyan.frontendandroid.presentation.components.TopNavBarWithIcon
+import com.pragyan.frontendandroid.presentation.navigation.NavigationScreens
 import com.pragyan.frontendandroid.ui.theme.FrontendAndroidTheme
 import kotlinx.coroutines.delay
 
@@ -75,7 +76,7 @@ fun UploadScreen(
                 ) {
                     // Header Text
                     Text(
-                        text = "Upload a video of your ${(exercise?.exerciseName)?.lowercase()} to receive\npersonalized feedback on your form.",
+                        text = "Start streaming of your ${(exercise?.exerciseName)?.lowercase()} to receive\npersonalized feedback on your form.",
                         fontSize = 16.sp,
                         textAlign = TextAlign.Center,
                         lineHeight = 24.sp
@@ -98,22 +99,25 @@ fun UploadScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
-                            Text(
-                                text = "Select Video",
-                                color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-
-                            Text(
-                                text = "Tap to choose a video from your library",
-                                color = Color(0xFF7A9999),
-                                fontSize = 14.sp,
-                                textAlign = TextAlign.Center
-                            )
+//                            Text(
+//                                text = "Select Video",
+//                                color = Color.White,
+//                                fontSize = 18.sp,
+//                                fontWeight = FontWeight.SemiBold
+//                            )
+//
+//                            Text(
+//                                text = "Tap to choose a video from your library",
+//                                color = Color(0xFF7A9999),
+//                                fontSize = 14.sp,
+//                                textAlign = TextAlign.Center
+//                            )
 
                             Button(
-                                onClick = {},
+                                onClick = {
+                                    // start live video
+                                    navController.navigate(route = NavigationScreens.CameraScreen.name)
+                                },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.secondary
                                 ),
@@ -121,7 +125,7 @@ fun UploadScreen(
                                 modifier = Modifier.padding(top = 8.dp)
                             ) {
                                 Text(
-                                    text = "Choose Video",
+                                    text = "Start Streaming",
                                     color = Color.White,
                                     fontSize = 16.sp,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -130,7 +134,7 @@ fun UploadScreen(
                         }
                     }
 
-                    // Upload Progress Section
+                    // Upload video to database
                     if (isUploading) {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -170,7 +174,7 @@ fun UploadScreen(
                             )
 
                             Text(
-                                text = "Your video is being analyzed. Feedback will\nbe available shortly.",
+                                text = "Your video is being saved.",
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 textAlign = TextAlign.Center,

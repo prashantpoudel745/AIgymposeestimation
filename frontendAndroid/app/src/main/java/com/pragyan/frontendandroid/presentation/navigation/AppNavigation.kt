@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.pragyan.frontendandroid.presentation.screens.CameraScreen
 import com.pragyan.frontendandroid.presentation.screens.DashboardScreen
 import com.pragyan.frontendandroid.presentation.screens.ExerciseScreen
 import com.pragyan.frontendandroid.presentation.screens.SettingsScreen
@@ -34,6 +35,9 @@ fun AppNavigation(){
             }
             composable(route = NavigationScreens.UploadScreen.name) {
                 UploadScreen(navController = navController)
+            }
+            composable (route = NavigationScreens.CameraScreen.name){
+                CameraScreen()
             }
 
         }
