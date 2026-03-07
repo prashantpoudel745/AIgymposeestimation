@@ -27,6 +27,8 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import com.pragyan.frontendandroid.R
+import com.pragyan.frontendandroid.domain.model.ExerciseType
+import com.pragyan.frontendandroid.posture.PostureAnalyzer
 import kotlin.math.max
 import kotlin.math.min
 
@@ -42,6 +44,15 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
     private var imageHeight: Int = 1
     private var offsetX: Float = 0f
     private var offsetY: Float = 0f
+    // for showing angle, warnings, rep counter, and form status
+    private val postureAnalyzer = PostureAnalyzer(ExerciseType.BICEPS_CURL, "left")
+
+    private var angle: Int? = null
+    private var stage: String = ""
+    private var form: String = ""
+    private var warning: String = ""
+
+    private lateinit var textPaint: Paint
 
     init {
         initPaints()
@@ -64,6 +75,12 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
         pointPaint.color = Color.YELLOW
         pointPaint.strokeWidth = LANDMARK_STROKE_WIDTH
         pointPaint.style = Paint.Style.FILL
+
+        // to show status
+        textPaint = Paint()
+        textPaint.color = Color.WHITE
+        textPaint.textSize = 60f
+        textPaint.style = Paint.Style.FILL
     }
 
     override fun draw(canvas: Canvas) {
@@ -88,6 +105,44 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
                 }
             }
         }
+
+        // ---------- TEXT OVERLAY ----------
+        canvas.drawText(
+            "Angle: ${angle ?: "--"}",
+            50f,
+            80f,
+            textPaint
+        )
+
+        canvas.drawText(
+            "Stage: $stage",
+            50f,
+            150f,
+            textPaint
+        )
+
+        canvas.drawText(
+            "Reps: ${postureAnalyzer.counter}",
+            50f,
+            220f,
+            textPaint
+        )
+
+        canvas.drawText(
+            "Form: $form",
+            50f,
+            290f,
+            textPaint
+        )
+
+        if (warning.isNotEmpty()) {
+            canvas.drawText(
+                "Warning: $warning",
+                50f,
+                360f,
+                textPaint
+            )
+        }
     }
 
     fun setResults(
@@ -100,6 +155,18 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
 
         this.imageHeight = imageHeight
         this.imageWidth = imageWidth
+
+        if (poseLandmarkerResults.landmarks().isNotEmpty()) {
+
+            val landmarks = poseLandmarkerResults.landmarks()[0]
+
+            val (a, s, f) = postureAnalyzer.analyze(landmarks)
+
+            angle = a
+            stage = s
+            form = f
+            warning = postureAnalyzer.formIssues.joinToString(", ")
+        }
 
         when (runningMode) {
             RunningMode.IMAGE,
@@ -115,6 +182,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
                 offsetY = 0f  // FILL_START anchors to top
             }
         }
+
         invalidate()
     }
 
