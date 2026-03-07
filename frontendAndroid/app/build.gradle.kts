@@ -61,4 +61,21 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.material.icons.extended)
+
+    implementation(libs.tasks.vision)
+
+// CameraX core library
+    implementation(libs.androidx.camera.core)
+
+// CameraX Camera2 extensions
+    implementation(libs.androidx.camera.camera2)
+
+// CameraX Lifecycle library
+    implementation(libs.androidx.camera.lifecycle)
+
+// CameraX View class
+    implementation(libs.androidx.camera.view)
+
+// WindowManager
+    implementation(libs.androidx.window)
 }
