@@ -247,6 +247,17 @@ class PoseLandmarkerHelper(
     ) {
         val finishTimeMs = SystemClock.uptimeMillis()
         val inferenceTime = finishTimeMs - result.timestampMs()
+// log the data of the results
+//        result.landmarks().forEachIndexed { poseIndex, landmarks ->
+//            Log.d(TAG, "Pose $poseIndex")
+//
+//            landmarks.forEachIndexed { index, landmark ->
+//                Log.d(
+//                    TAG,
+//                    "Landmark $index -> x:${landmark.x()} y:${landmark.y()} z:${landmark.z()} visibility:${landmark.visibility().orElse(0f)}"
+//                )
+//            }
+//        }
 
         poseLandmarkerHelperListener?.onResults(
             ResultBundle(
