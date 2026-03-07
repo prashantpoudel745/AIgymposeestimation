@@ -22,3 +22,10 @@ fun getExerciseSampleData(): List<Exercise> {
         Exercise(6, "Plank", "Core", "Improves core stability.", R.drawable.plank)
     )
 }
+
+enum class ExerciseType {
+    BICEPS_CURL,
+    DEADLIFT,
+    TRICEPS_PUSHDOWN,
+    LEG_PRESS
+}
