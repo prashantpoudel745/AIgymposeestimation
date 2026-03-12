@@ -91,11 +91,11 @@ class PostureAnalyzer(
 
         val angle = AngleUtils.calculateAngle(shoulder, elbow, wrist)
 
-        if (angle > 160 && stage != "down") {
+        if (angle > 130 && stage != "down") {
             stage = "down"
         }
 
-        if (angle < 40 && stage == "down") {
+        if (angle < 60 && stage == "down") {
             stage = "up"
             counter++
         }

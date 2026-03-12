@@ -88,20 +88,35 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
         results?.let { poseLandmarkerResult ->
             for(landmark in poseLandmarkerResult.landmarks()) {
                 for(normalizedLandmark in landmark) {
-                    canvas.drawPoint(
-                        (1f - normalizedLandmark.x()) * imageWidth * scaleFactor + offsetX, // Mirror the X coordinate
-                        normalizedLandmark.y() * imageHeight * scaleFactor + offsetY,
-                        pointPaint
-                    )
+                    val visibility = normalizedLandmark.visibility().orElse(0f)
+                    if (visibility > 0.5f) {
+                        canvas.drawPoint(
+                            (1f - normalizedLandmark.x()) * imageWidth * scaleFactor + offsetX, // Mirror the X coordinate
+                            normalizedLandmark.y() * imageHeight * scaleFactor + offsetY,
+                            pointPaint
+                        )
+                    }
                 }
 
-                PoseLandmarker.POSE_LANDMARKS.forEach {
-                    canvas.drawLine(
-                        (1f - poseLandmarkerResult.landmarks()[0][it!!.start()].x()) * imageWidth * scaleFactor + offsetX,
-                        poseLandmarkerResult.landmarks()[0][it.start()].y() * imageHeight * scaleFactor + offsetY,
-                        (1f - poseLandmarkerResult.landmarks()[0][it.end()].x()) * imageWidth * scaleFactor + offsetX,
-                        poseLandmarkerResult.landmarks()[0][it.end()].y() * imageHeight * scaleFactor + offsetY,
-                        linePaint)
+                PoseLandmarker.POSE_LANDMARKS.forEach { connection ->
+                    // Get the starting and ending landmark of the connection
+                    val startLm = poseLandmarkerResult.landmarks()[0][connection!!.start()]
+                    val endLm = poseLandmarkerResult.landmarks()[0][connection.end()]
+
+                    // Check if the starting and ending landmark is visible with confidence > 0.5
+                    val startVisible = startLm.visibility().orElse(0f) > 0.5f
+                    val endVisible = endLm.visibility().orElse(0f) > 0.5f
+
+                    if (startVisible && endVisible) {
+
+                        canvas.drawLine(
+                            (1f - startLm.x()) * imageWidth * scaleFactor + offsetX,
+                            startLm.y() * imageHeight * scaleFactor + offsetY,
+                            (1f - endLm.x()) * imageWidth * scaleFactor + offsetX,
+                            endLm.y() * imageHeight * scaleFactor + offsetY,
+                            linePaint
+                        )
+                    }
                 }
             }
         }
@@ -187,6 +202,6 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
     }
 
     companion object {
-        private const val LANDMARK_STROKE_WIDTH = 12F
+        private const val LANDMARK_STROKE_WIDTH = 8F
     }
 }
