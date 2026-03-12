@@ -8,6 +8,14 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTa
 from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
 import shutil
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from datetime import timedelta
+from database import db
+from models import UserCreate, UserInDB, UserOut, ExerciseRecord, ExerciseRecordRequest, Token, TokenData
+from auth_utils import verify_password, get_password_hash, create_access_token, ALGORITHM, SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
+from fastapi import Depends
 
 app = FastAPI(title="AI Gym Posture Correction API", version="2.0")
 
@@ -307,6 +315,56 @@ def process_video_file(input_path: str, output_path: str, exercise: str, side: s
     }
 
 
+# ------------------ AUTHENTICATION ------------------ #
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+        token_data = TokenData(email=email)
+    except JWTError:
+        raise credentials_exception
+    
+    user = await db.users.find_one({"email": token_data.email})
+    if user is None:
+        raise credentials_exception
+    return user
+
+@app.post("/register", response_model=UserOut)
+async def register(user: UserCreate):
+    existing_user = await db.users.find_one({"email": user.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    hashed_password = get_password_hash(user.password)
+    user_in_db = UserInDB(**user.dict(), hashed_password=hashed_password)
+    
+    new_user = await db.users.insert_one(user_in_db.dict())
+    created_user = await db.users.find_one({"_id": new_user.inserted_id})
+    return created_user
+
+@app.post("/login", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = await db.users.find_one({"email": form_data.username})
+    if not user or not verify_password(form_data.password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user["email"]}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 # ------------------ API ENDPOINTS ------------------ #
 
 @app.get("/")
@@ -367,7 +425,8 @@ def list_exercises():
 async def analyze_image(
     exercise: str = Form(..., description="Exercise type"),
     side: str = Form("left", description="Body side to analyze (left/right)"),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
 ):
     """Analyze single image and return posture metrics"""
     # Validate inputs
@@ -428,7 +487,8 @@ async def analyze_video(
     background_tasks: BackgroundTasks,
     exercise: str = Form(..., description="Exercise type"),
     side: str = Form("left", description="Body side to analyze (left/right)"),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Analyze exercise form from a video file and return processed video with overlays
@@ -463,6 +523,16 @@ async def analyze_video(
         # Process video
         stats = process_video_file(input_path, output_path, exercise, side)
         
+        # Save record to database
+        record = ExerciseRecord(
+            user_id=str(current_user["_id"]),
+            exercise_type=exercise,
+            side=side,
+            reps=stats.get("reps_completed", 0),
+            detection_rate=stats["detection_rate"]
+        )
+        await db.exercise_records.insert_one(record.dict())
+        
         # Verify output exists
         if not os.path.exists(output_path):
             raise HTTPException(500, "Video processing failed - output file not created")
@@ -488,6 +558,18 @@ async def analyze_video(
         # Ensure cleanup on error
         cleanup_temp_files([input_path, output_path])
         raise HTTPException(500, f"Video processing failed: {str(e)}")
+
+
+@app.post("/exercise-record")
+async def save_exercise_record(
+    record: ExerciseRecordRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Save exercise session record from the app"""
+    record_dict = record.dict()
+    record_dict["user_id"] = str(current_user["_id"])
+    await db.exercise_records.insert_one(record_dict)
+    return {"success": True, "message": "Record saved successfully"}
 
 
 # ------------------ CLI WEBCAM MODE (Enhanced) ------------------ #
