@@ -27,6 +27,8 @@ fun CameraPreview(
 
     val context = LocalContext.current
 
+    val cameraExecutor = Executors.newSingleThreadExecutor()
+
     AndroidView(
         factory = { ctx ->
             val previewView = PreviewView(ctx).apply {
@@ -53,41 +55,11 @@ fun CameraPreview(
                     )
                     .build()
 
-                imageAnalyzer.setAnalyzer(
-                    Executors.newSingleThreadExecutor()
-                ) { imageProxy ->
+                imageAnalyzer.setAnalyzer(cameraExecutor) { imageProxy ->
 
-                    val bitmap = Bitmap.createBitmap(
-                        imageProxy.width,
-                        imageProxy.height,
-                        Bitmap.Config.ARGB_8888
-                    )
 
-                    bitmap.copyPixelsFromBuffer(
-                        imageProxy.planes[0].buffer
-                    )
-
-                    val matrix = Matrix().apply {
-                        postRotate(
-                            imageProxy.imageInfo.rotationDegrees.toFloat()
-                        )
-                    }
-
-                    val rotatedBitmap = Bitmap.createBitmap(
-                        bitmap,
-                        0,
-                        0,
-                        bitmap.width,
-                        bitmap.height,
-                        matrix,
-                        true
-                    )
-
-                    val mpImage = BitmapImageBuilder(rotatedBitmap).build()
-
-                    poseLandmarkerHelper.detectAsync(
-                        mpImage,
-                        SystemClock.uptimeMillis()
+                    poseLandmarkerHelper.detectLiveStream(
+                        imageProxy
                     )
 
                     imageProxy.close()
