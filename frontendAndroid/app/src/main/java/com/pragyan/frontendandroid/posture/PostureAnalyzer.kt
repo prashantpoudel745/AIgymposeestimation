@@ -1,7 +1,6 @@
 package com.pragyan.frontendandroid.posture
 
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
-import com.pragyan.frontendandroid.domain.model.Exercise
 import com.pragyan.frontendandroid.domain.model.ExerciseType
 
 class PostureAnalyzer(
