@@ -1,7 +1,6 @@
 package com.pragyan.frontendandroid.posture
 
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
-import com.pragyan.frontendandroid.domain.model.Exercise
 import com.pragyan.frontendandroid.domain.model.ExerciseType
 
 class PostureAnalyzer(
@@ -86,29 +85,91 @@ class PostureAnalyzer(
         landmarks: List<NormalizedLandmark>
     ): Triple<Int, String, String> {
 
+
+        // ── Core landmarks ────────────────────────────────────────────────────────
         val (shoulder, elbow, wrist) =
             getLandmarks(landmarks, "shoulder", "elbow", "wrist")
 
+        // Hip is used to detect trunk / body sway
+        val hip = try {
+            getLandmarks(landmarks, "hip").first()
+        } catch (e: Exception) {
+            null
+        }
+
+        // ── Primary angle: shoulder → elbow → wrist (elbow flexion) ──────────────
         val angle = AngleUtils.calculateAngle(shoulder, elbow, wrist)
 
+        // ── Stage machine ─────────────────────────────────────────────────────────
+        // "down"  = arm extended, ready to curl   (angle > 150°)
+        // "up"    = arm curled, peak contraction  (angle < 50°)
+        // Hysteresis band between 50–150 prevents rapid toggling ("mid")
         if (angle > 130 && stage != "down") {
             stage = "down"
         }
+//             Transition out of "up" as soon as the arm starts descending
+//            if (angle > 80 && stage == "up") {
+//                stage = "mid"
+//            }
 
-        if (angle < 60 && stage == "down") {
+        if (angle < 50 && stage == "down") {
             stage = "up"
             counter++
         }
 
-        val formStatus =
-            if (angle in 30..170) "GOOD" else "BAD"
-
+        // ── Form checks ───────────────────────────────────────────────────────────
         formIssues.clear()
 
-        when {
-            angle < 30 -> formIssues.add("Elbow overextended")
-            angle > 170 -> formIssues.add("Not full contraction")
+        // 1. Hyperextension at the bottom — angle > 170° means elbow is locking out
+        if (stage == "down" && angle > 160) {
+            formIssues.add("Don't lock out your elbow at the bottom")
         }
+
+        // 2. Incomplete contraction at the top — angle > 60° at "up" means
+        //    the user didn't fully curl the weight
+//            if (stage == "up" && angle > 70) {
+//                formIssues.add("Curl higher — incomplete contraction at peak")
+//            }
+
+        // 3. Elbow sway / upper arm drift — the upper arm (shoulder→elbow) should
+        //    stay close to vertical (elbow below shoulder).
+        //    We compare the elbow's x position to the shoulder's x position.
+        //    In normalised coords x grows left→right; a large horizontal gap means
+        //    the elbow has swung forward.
+
+        val dx = elbow[0] - shoulder[0]   // horizontal difference
+        val dy = elbow[1] - shoulder[1]   // vertical difference
+
+        val angleRad = kotlin.math.atan2(kotlin.math.abs(dx), kotlin.math.abs(dy))
+        val angleDeg = Math.toDegrees(angleRad.toDouble()).toFloat()
+
+        if (angleDeg > 25f) {
+            formIssues.add("Keep your elbow tucked — upper arm is swinging")
+        }
+
+
+        // 4. Wrist curl / wrist drop — wrist should not drop below elbow at the top
+        //    (y grows downward in image coords)
+//            if (stage == "up" && wrist[1] > elbow[1]) {
+//                formIssues.add("Keep your wrist above elbow level at the top")
+//            }
+
+        // 5. Trunk / body sway — if hip is visible, check that the torso is upright.
+        //    Shoulder and hip should be roughly vertically aligned.
+        if (hip != null) {
+
+            val dx = shoulder[0] - hip[0]   // horizontal difference
+            val dy = shoulder[1] - hip[1]   // vertical difference
+
+            val angleRad = kotlin.math.atan2(kotlin.math.abs(dx), kotlin.math.abs(dy))
+            val angleDeg = Math.toDegrees(angleRad.toDouble()).toFloat()
+
+            if (angleDeg > 15f) {
+                formIssues.add("Stand upright — avoid swinging your torso")
+            }
+        }
+        // ── Overall form status ───────────────────────────────────────────────────
+        val formStatus = if (formIssues.isEmpty()) "GOOD" else "BAD"
 
         return Triple(angle, stage ?: "mid", formStatus)
     }

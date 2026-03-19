@@ -1,8 +1,5 @@
 package com.pragyan.frontendandroid.presentation.components
 
-import android.graphics.Bitmap
-import android.graphics.Matrix
-import android.os.SystemClock
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -15,7 +12,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.pragyan.frontendandroid.poselandmarker.PoseLandmarkerHelper
 import java.util.concurrent.Executors
 
@@ -26,6 +22,8 @@ fun CameraPreview(
 ) {
 
     val context = LocalContext.current
+
+    val cameraExecutor = Executors.newSingleThreadExecutor()
 
     AndroidView(
         factory = { ctx ->
@@ -53,41 +51,11 @@ fun CameraPreview(
                     )
                     .build()
 
-                imageAnalyzer.setAnalyzer(
-                    Executors.newSingleThreadExecutor()
-                ) { imageProxy ->
+                imageAnalyzer.setAnalyzer(cameraExecutor) { imageProxy ->
 
-                    val bitmap = Bitmap.createBitmap(
-                        imageProxy.width,
-                        imageProxy.height,
-                        Bitmap.Config.ARGB_8888
-                    )
 
-                    bitmap.copyPixelsFromBuffer(
-                        imageProxy.planes[0].buffer
-                    )
-
-                    val matrix = Matrix().apply {
-                        postRotate(
-                            imageProxy.imageInfo.rotationDegrees.toFloat()
-                        )
-                    }
-
-                    val rotatedBitmap = Bitmap.createBitmap(
-                        bitmap,
-                        0,
-                        0,
-                        bitmap.width,
-                        bitmap.height,
-                        matrix,
-                        true
-                    )
-
-                    val mpImage = BitmapImageBuilder(rotatedBitmap).build()
-
-                    poseLandmarkerHelper.detectAsync(
-                        mpImage,
-                        SystemClock.uptimeMillis()
+                    poseLandmarkerHelper.detectLiveStream(
+                        imageProxy
                     )
 
                     imageProxy.close()

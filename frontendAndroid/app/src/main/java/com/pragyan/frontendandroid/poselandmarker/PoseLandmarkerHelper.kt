@@ -32,13 +32,14 @@ import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
+import androidx.core.graphics.createBitmap
 
 class PoseLandmarkerHelper(
     var minPoseDetectionConfidence: Float = DEFAULT_POSE_DETECTION_CONFIDENCE,
     var minPoseTrackingConfidence: Float = DEFAULT_POSE_TRACKING_CONFIDENCE,
     var minPosePresenceConfidence: Float = DEFAULT_POSE_PRESENCE_CONFIDENCE,
     var currentModel: Int = MODEL_POSE_LANDMARKER_FULL,
-    var currentDelegate: Int = DELEGATE_CPU,
+    var currentDelegate: Int = DELEGATE_GPU,
     var runningMode: RunningMode = RunningMode.LIVE_STREAM,
     val context: Context,
     // this listener is only used when running in RunningMode.LIVE_STREAM
@@ -133,8 +134,25 @@ class PoseLandmarkerHelper(
     }
 
     // Convert the ImageProxy to MP Image and feed it to PoselandmakerHelper.
-    fun detectLiveStream(bitmap: Bitmap) {
-        val mpImage = BitmapImageBuilder(bitmap).build()
+    fun detectLiveStream(imageProxy: ImageProxy) {
+        val bitmap = createBitmap(imageProxy.width, imageProxy.height)
+
+        bitmap.copyPixelsFromBuffer(imageProxy.planes[0].buffer)
+
+        val matrix = Matrix().apply {
+            postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
+        }
+        val rotatedBitmap = Bitmap.createBitmap(
+            bitmap,
+            0,
+            0,
+            bitmap.width,
+            bitmap.height,
+            matrix,
+            true
+        )
+
+        val mpImage = BitmapImageBuilder(rotatedBitmap).build()
         detectAsync(mpImage, SystemClock.uptimeMillis())
     }
 
