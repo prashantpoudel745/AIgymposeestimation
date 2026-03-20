@@ -13,7 +13,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import timedelta
 from database import db
-from models import UserCreate, UserInDB, UserOut, ExerciseRecord, ExerciseRecordRequest, Token, TokenData
+from models import UserCreate, UserInDB, UserOut, ExerciseRecord, ExerciseRecordRequest, Token, TokenData, LoginRequest
 from auth_utils import verify_password, get_password_hash, create_access_token, ALGORITHM, SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
 from fastapi import Depends
 
@@ -353,8 +353,8 @@ async def register(user: UserCreate):
     return created_user
 
 @app.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = await db.users.find_one({"email": form_data.username})
+async def login(form_data: LoginRequest):
+    user = await db.users.find_one({"email": form_data.email})
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     
@@ -602,6 +602,8 @@ def run_webcam(exercise_name: str, side: str = "left"):
 
             # Process frame
             processed_frame, _ = process_video_frame(frame, pose_detector, analyzer)
+            # Get frame dimensions
+            height, width, _ = processed_frame.shape
             
             # Add counter display for applicable exercises
             if exercise_name == "biceps_curl":
