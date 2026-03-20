@@ -353,8 +353,8 @@ async def register(user: UserCreate):
     return created_user
 
 @app.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = await db.users.find_one({"email": form_data.username})
+async def login(form_data: LoginRequest):
+    user = await db.users.find_one({"email": form_data.email})
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     
