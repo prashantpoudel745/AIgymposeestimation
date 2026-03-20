@@ -13,7 +13,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import timedelta
 from database import db
-from models import UserCreate, UserInDB, UserOut, ExerciseRecord, ExerciseRecordRequest, Token, TokenData
+from models import UserCreate, UserInDB, UserOut, ExerciseRecord, ExerciseRecordRequest, Token, TokenData, LoginRequest
 from auth_utils import verify_password, get_password_hash, create_access_token, ALGORITHM, SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
 from fastapi import Depends
 
@@ -365,6 +365,56 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+# ------------------ AUTHENTICATION ------------------ #
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+        token_data = TokenData(email=email)
+    except JWTError:
+        raise credentials_exception
+    
+    user = await db.users.find_one({"email": token_data.email})
+    if user is None:
+        raise credentials_exception
+    return user
+
+@app.post("/register", response_model=UserOut)
+async def register(user: UserCreate):
+    existing_user = await db.users.find_one({"email": user.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    hashed_password = get_password_hash(user.password)
+    user_in_db = UserInDB(**user.dict(), hashed_password=hashed_password)
+    
+    new_user = await db.users.insert_one(user_in_db.dict())
+    created_user = await db.users.find_one({"_id": new_user.inserted_id})
+    return created_user
+
+@app.post("/login", response_model=Token)
+async def login(form_data: LoginRequest):
+    user = await db.users.find_one({"email": form_data.email})
+    if not user or not verify_password(form_data.password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user["email"]}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 # ------------------ API ENDPOINTS ------------------ #
 
 @app.get("/")
@@ -602,6 +652,8 @@ def run_webcam(exercise_name: str, side: str = "left"):
 
             # Process frame
             processed_frame, _ = process_video_frame(frame, pose_detector, analyzer)
+            # Get frame dimensions
+            height, width, _ = processed_frame.shape
             
             # Add counter display for applicable exercises
             if exercise_name == "biceps_curl":

@@ -8,7 +8,7 @@ DATABASE_URL = os.getenv("MONGO_URI")
 
 if not DATABASE_URL:
     # Use the previous hardcoded fallback if absolutely nothing is found in .env
-    DATABASE_URL = "mongodb+srv://user:user@subsstartup.jc9v7j1.mongodb.net/?appName=subsstartup"
+    DATABASE_URL = "mongodb://localhost:27017/aigymdb"
 
 DB_NAME = "aigym_db"
 

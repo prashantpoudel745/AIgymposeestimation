@@ -24,6 +24,10 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
 
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
 class UserInDB(UserBase):
     hashed_password: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
