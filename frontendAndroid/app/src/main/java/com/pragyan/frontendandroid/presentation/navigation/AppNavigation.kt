@@ -9,6 +9,8 @@ import androidx.navigation.compose.rememberNavController
 import com.pragyan.frontendandroid.presentation.screens.CameraScreen
 import com.pragyan.frontendandroid.presentation.screens.DashboardScreen
 import com.pragyan.frontendandroid.presentation.screens.ExerciseScreen
+import com.pragyan.frontendandroid.presentation.screens.LoginScreen
+import com.pragyan.frontendandroid.presentation.screens.RegisterScreen
 import com.pragyan.frontendandroid.presentation.screens.SettingsScreen
 import com.pragyan.frontendandroid.presentation.screens.UploadScreen
 
@@ -22,8 +24,14 @@ fun AppNavigation(){
         LocalExerciseNavState provides exerciseNavState
     ) {
         NavHost(
-            navController = navController, startDestination = NavigationScreens.DashboardScreen.name
+            navController = navController, startDestination = NavigationScreens.LoginScreen.name
         ) {
+            composable(route = NavigationScreens.LoginScreen.name) {
+                LoginScreen(navController = navController)
+            }
+            composable(route = NavigationScreens.RegisterScreen.name) {
+                RegisterScreen(navController = navController)
+            }
             composable(route = NavigationScreens.DashboardScreen.name) {
                 DashboardScreen(navController = navController)
             }
