@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
@@ -49,6 +50,13 @@ fun BottomNavBar(navController: NavController) {
                 label = "Exercise"
             ) {
                 navController.navigate(NavigationScreens.ExerciseScreen.name)
+            }
+
+            BottomNavItem(
+                icon = Icons.Outlined.History,
+                label = "History"
+            ) {
+                navController.navigate(NavigationScreens.HistoryScreen.name)
             }
 
             BottomNavItem(
