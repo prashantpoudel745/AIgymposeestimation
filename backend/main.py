@@ -34,6 +34,9 @@ mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
+# A strict 0.5 cutoff can drop valid landmarks in moving/angled videos.
+LANDMARK_VISIBILITY_THRESHOLD = float(os.getenv("LANDMARK_VISIBILITY_THRESHOLD", "0.35"))
+
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
@@ -65,7 +68,8 @@ def get_landmark(landmarks, landmark_index):
     if landmark_index >= len(landmarks):
         raise ValueError(f"Landmark index {landmark_index} out of range")
     lm = landmarks[landmark_index]
-    return [lm.x, lm.y] if lm.visibility > 0.5 else None
+    visibility = getattr(lm, "visibility", 1.0)
+    return [lm.x, lm.y] if visibility >= LANDMARK_VISIBILITY_THRESHOLD else None
 
 def cleanup_temp_files(file_paths: list):
     """Safely delete temporary files"""
@@ -178,22 +182,53 @@ class PostureAnalyzer:
     
     def _analyze_biceps_curl(self, landmarks):
         shoulder, elbow, wrist = self._get_landmarks(landmarks, "shoulder", "elbow", "wrist")
+        try:
+            hip = self._get_landmarks(landmarks, "hip")[0]
+        except ValueError:
+            hip = None
+
         angle = calculate_angle(shoulder, elbow, wrist)
-        
-        # Count repetitions
-        if angle > 160 and self.stage != "down":
+
+        # Match frontend stage machine: down when extended (>130), up at peak (<50).
+        if angle > 130 and self.stage != "down":
             self.stage = "down"
-        if angle < 40 and self.stage == "down":
+
+        # Frontend transition rule: once descending from top, move out of "up" state.
+        if angle > 80 and self.stage == "up":
+            self.stage = "mid"
+
+        if angle < 50 and self.stage == "down":
             self.stage = "up"
             self.counter += 1
-        
-        form_status = "GOOD" if 30 <= angle <= 170 else "BAD"
-        if angle < 30:
-            self.form_issues = ["Elbow overextended"]
-        elif angle > 170:
-            self.form_issues = ["Not full contraction"]
-        else:
-            self.form_issues = []
+
+        self.form_issues = []
+
+        # 1) Lockout warning at bottom.
+        if self.stage == "down" and angle > 160:
+            self.form_issues.append("Don't lock out your elbow at the bottom")
+
+        # 2) Elbow tuck check: shoulder->elbow line should stay near vertical.
+        dx = elbow[0] - shoulder[0]
+        dy = elbow[1] - shoulder[1]
+        upper_arm_angle_deg = float(np.degrees(np.arctan2(abs(dx), abs(dy))))
+        if upper_arm_angle_deg > 25.0:
+            self.form_issues.append("Keep your elbow tucked - upper arm is swinging")
+
+        # 3) Incomplete peak contraction and wrist drop checks at top position.
+        if self.stage == "up" and angle > 70:
+            self.form_issues.append("Curl higher - incomplete contraction at peak")
+        if self.stage == "up" and wrist[1] > elbow[1]:
+            self.form_issues.append("Keep your wrist above elbow level at the top")
+
+        # 4) Torso sway check when hip landmark is visible.
+        if hip is not None:
+            torso_dx = shoulder[0] - hip[0]
+            torso_dy = shoulder[1] - hip[1]
+            torso_angle_deg = float(np.degrees(np.arctan2(abs(torso_dx), abs(torso_dy))))
+            if torso_angle_deg > 15.0:
+                self.form_issues.append("Stand upright - avoid swinging your torso")
+
+        form_status = "GOOD" if not self.form_issues else "BAD"
             
         return angle, self.stage or "mid", form_status
     
@@ -249,12 +284,29 @@ def process_video_frame(frame, pose_detector, analyzer):
     output_frame = frame.copy()
     
     if results.pose_landmarks:
-        # Draw skeleton with enhanced styling
+        # Frontend-like overlay palette (BGR for OpenCV)
+        skeleton_line_color = (134, 135, 1)   # teal_700-ish
+        skeleton_point_color = (0, 255, 255)  # yellow
+        info_color = (185, 128, 41)           # #2980B9
+        good_color = (96, 174, 39)            # #27AE60
+        warn_color = (34, 126, 230)           # #E67E22
+        bad_form_color = (60, 76, 231)        # #E74C3C
+
+        # Draw skeleton with frontend-like styling
         mp_drawing.draw_landmarks(
             output_frame,
             results.pose_landmarks,
             mp_pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
+            landmark_drawing_spec=mp_drawing.DrawingSpec(
+                color=skeleton_point_color,
+                thickness=2,
+                circle_radius=2,
+            ),
+            connection_drawing_spec=mp_drawing.DrawingSpec(
+                color=skeleton_line_color,
+                thickness=2,
+                circle_radius=2,
+            ),
         )
         
         # Analyze exercise form
@@ -263,28 +315,31 @@ def process_video_frame(frame, pose_detector, analyzer):
             
             if angle is not None:
                 # Draw analysis metrics
-                h, w = frame.shape[:2]
-                cv2.rectangle(output_frame, (10, 10), (350, 180), (0, 0, 0), -1)
+                overlay = output_frame.copy()
+                cv2.rectangle(overlay, (10, 10), (430, 190), (0, 0, 0), -1)
+                cv2.addWeighted(overlay, 0.58, output_frame, 0.42, 0, output_frame)
                 
                 # Color coding for form status
-                color = (0, 255, 0) if form_status == "GOOD" else (0, 0, 255)
+                form_color = good_color if form_status == "GOOD" else bad_form_color
                 
                 cv2.putText(output_frame, f"Exercise: {analyzer.exercise_type.replace('_', ' ').title()}", 
-                           (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                           (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.62, info_color, 2)
                 cv2.putText(output_frame, f"Angle: {angle} deg", 
-                           (20, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                           (20, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.62, info_color, 2)
                 cv2.putText(output_frame, f"Stage: {stage}", 
-                           (20, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                           (20, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.62, info_color, 2)
                 cv2.putText(output_frame, f"Form: {form_status}", 
-                           (20, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+                           (20, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.75, form_color, 2)
                 
                 # Show form issues if any
                 if analyzer.form_issues:
-                    cv2.putText(output_frame, "ISSUE:", (20, 175), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                    issue_text = analyzer.form_issues[0][:45]
+                    cv2.putText(output_frame, f"Warning: {issue_text}", (20, 175),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.55, warn_color, 2)
             else:
-                cv2.putText(output_frame, "Landmark detection failed", 
-                           (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                error_text = form_status if isinstance(form_status, str) and form_status.startswith("LANDMARK_ERROR") else "Landmark detection failed"
+                cv2.putText(output_frame, error_text[:70],
+                           (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         except Exception as e:
             cv2.putText(output_frame, f"Analysis error: {str(e)[:30]}", 
                        (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
@@ -348,6 +403,9 @@ def process_video_file(input_path: str, output_path: str, exercise: str, side: s
             ret, frame = cap.read()
             if not ret:
                 break
+
+            # Match frontend mirrored camera behavior for consistent pose side mapping.
+            frame = cv2.flip(frame, 1)
             
             # Process frame
             processed_frame, pose_detected = process_video_frame(frame, pose_detector, analyzer)
