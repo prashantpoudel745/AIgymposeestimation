@@ -11,7 +11,7 @@ import shutil
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from datetime import timedelta
+from datetime import timedelta, datetime
 from database import db
 from models import UserCreate, UserInDB, UserOut, ExerciseRecord, ExerciseRecordRequest, Token, TokenData, LoginRequest
 from auth_utils import verify_password, get_password_hash, create_access_token, ALGORITHM, SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -618,9 +618,34 @@ async def save_exercise_record(
     """Save exercise session record from the app"""
     record_dict = record.dict()
     record_dict["user_id"] = str(current_user["_id"])
+    record_dict["timestamp"] = datetime.utcnow()
     await db.exercise_records.insert_one(record_dict)
     return {"success": True, "message": "Record saved successfully"}
 
+@app.get('/user-history')
+@app.get('/fetch-history')
+async def fetch_history(
+    exercise_type: Optional[str] = None,
+    side: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Fetch exercise history for the authenticated user with optional filters"""
+    query = {"user_id": str(current_user["_id"])}
+    
+    if exercise_type:
+        query["exercise_type"] = exercise_type
+    if side:
+        query["side"] = side
+    
+    records_cursor = db.exercise_records.find(query).sort("timestamp", -1)
+    records = []
+    async for record in records_cursor:
+        record["_id"] = str(record["_id"])
+        if "timestamp" in record and hasattr(record["timestamp"], "isoformat"):
+            record["timestamp"] = record["timestamp"].isoformat()
+        records.append(record)
+    
+    return {"success": True, "records": records}
 
 # ------------------ CLI WEBCAM MODE (Enhanced) ------------------ #
 
