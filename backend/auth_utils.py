@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 import os
 
 # Configuration
@@ -9,10 +10,16 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    if not hashed_password:
+        return False
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except UnknownHashError:
+        # Treat unrecognized hash formats as invalid credentials.
+        return False
 
 def get_password_hash(password):
     return pwd_context.hash(password)
