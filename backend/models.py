@@ -47,7 +47,15 @@ class ExerciseRecord(BaseModel):
     reps: int
     detection_rate: float
     video_url: Optional[str] = None
+    processed_video_url: Optional[str] = None
+    raw_video_url: Optional[str] = None
+    original_video_url: Optional[str] = None
     cloudinary_public_id: Optional[str] = None
+    processed_cloudinary_public_id: Optional[str] = None
+    raw_cloudinary_public_id: Optional[str] = None
+    original_cloudinary_public_id: Optional[str] = None
+    raw_video_size_bytes: Optional[int] = None
+    processed_video_size_bytes: Optional[int] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 class ExerciseRecordRequest(BaseModel):

@@ -6,6 +6,7 @@ import os
 import uuid
 import cloudinary
 import cloudinary.uploader
+import cloudinary.utils
 from cloudinary.exceptions import Error as CloudinaryError
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -76,15 +77,15 @@ def cleanup_temp_files(file_paths: list):
             print(f"Error cleaning up {path}: {str(e)}")
 
 
-def upload_video_to_cloudinary(video_path: str, user_id: str, exercise: str, side: str):
-    """Upload processed video to Cloudinary and return secure URL and public ID."""
+def upload_video_to_cloudinary(video_path: str, user_id: str, exercise: str, side: str, variant: str):
+    """Upload video to Cloudinary and return a browser-playable MP4 URL + public ID."""
     if not (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET):
         raise HTTPException(
             status_code=500,
             detail="Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.",
         )
 
-    public_id = f"aigym/{user_id}/{exercise}_{side}_{uuid.uuid4().hex}"
+    public_id = f"aigym/{user_id}/{exercise}_{side}_{variant}_{uuid.uuid4().hex}"
 
     try:
         upload_result = cloudinary.uploader.upload_large(
@@ -92,14 +93,26 @@ def upload_video_to_cloudinary(video_path: str, user_id: str, exercise: str, sid
             resource_type="video",
             public_id=public_id,
             overwrite=True,
+            eager=[{"format": "mp4"}],
+            eager_async=False,
         )
-        secure_url = upload_result.get("secure_url")
         uploaded_public_id = upload_result.get("public_id")
+        eager_items = upload_result.get("eager") or []
 
-        if not secure_url:
+        # Prefer eagerly generated mp4 URL because it is reliably playable in browser/clients.
+        playable_url = eager_items[0].get("secure_url") if eager_items else None
+        if not playable_url and uploaded_public_id:
+            playable_url = cloudinary.utils.cloudinary_url(
+                uploaded_public_id,
+                resource_type="video",
+                format="mp4",
+                secure=True,
+            )[0]
+
+        if not playable_url:
             raise HTTPException(status_code=500, detail="Cloudinary upload succeeded but did not return video URL")
 
-        return secure_url, uploaded_public_id
+        return playable_url, uploaded_public_id
     except CloudinaryError as exc:
         raise HTTPException(status_code=502, detail=f"Cloudinary upload failed: {str(exc)}")
 
@@ -300,14 +313,16 @@ def process_video_file(input_path: str, output_path: str, exercise: str, side: s
     if fps <= 0 or fps > 120:
         fps = 30
     
-    # Initialize video writer with multiple codec fallbacks
-    codecs = [('mp4v', '.mp4'), ('avc1', '.mp4'), ('H264', '.mp4'), ('XVID', '.avi')]
+    # Keep output in MP4 container only to avoid unplayable codec/container mismatches.
+    codecs = [('mp4v', '.mp4'), ('avc1', '.mp4'), ('H264', '.mp4')]
     out = None
+    selected_output_path = output_path
     
     for codec_code, ext in codecs:
         try:
+            selected_output_path = f"{os.path.splitext(output_path)[0]}{ext}"
             fourcc = cv2.VideoWriter_fourcc(*codec_code)
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            out = cv2.VideoWriter(selected_output_path, fourcc, fps, (width, height))
             if out.isOpened():
                 break
             out.release()
@@ -352,7 +367,7 @@ def process_video_file(input_path: str, output_path: str, exercise: str, side: s
     out.release()
     
     # Verify output file was created successfully
-    if not os.path.exists(output_path) or os.path.getsize(output_path) < 1000:
+    if not os.path.exists(selected_output_path) or os.path.getsize(selected_output_path) < 1000:
         raise HTTPException(500, "Video processing failed - output file invalid")
     
     # Return processing statistics
@@ -360,7 +375,8 @@ def process_video_file(input_path: str, output_path: str, exercise: str, side: s
         "total_frames": frames_processed,
         "pose_detected_frames": pose_detected_count,
         "detection_rate": round(pose_detected_count / max(frames_processed, 1) * 100, 1),
-        "reps_completed": analyzer.counter if hasattr(analyzer, 'counter') else 0
+        "reps_completed": analyzer.counter if hasattr(analyzer, 'counter') else 0,
+        "processed_output_path": selected_output_path,
     }
 
 
@@ -536,7 +552,6 @@ def read_root():
         "supported_sides": ["left", "right"]
     }
 
-
 @app.get("/exercises")
 def list_exercises():
     """Detailed exercise capabilities"""
@@ -572,7 +587,6 @@ def list_exercises():
             "Side selection (left/right)"
         ]
     }
-
 
 @app.post("/analyze-image")
 async def analyze_image(
@@ -634,7 +648,6 @@ async def analyze_image(
     except Exception as e:
         raise HTTPException(500, f"Image processing failed: {str(e)}")
 
-
 @app.post("/analyze-video")
 async def analyze_video(
     background_tasks: BackgroundTasks,
@@ -676,12 +689,26 @@ async def analyze_video(
         # Process video
         stats = process_video_file(input_path, output_path, exercise, side)
 
-        # Upload processed video to Cloudinary
-        cloudinary_video_url, cloudinary_public_id = upload_video_to_cloudinary(
-            output_path,
+        # Upload original user video from FE to Cloudinary.
+        original_video_url, original_cloudinary_public_id = upload_video_to_cloudinary(
+            input_path,
             str(current_user["_id"]),
             exercise,
             side,
+            "original",
+        )
+
+        processed_output_path = stats.get("processed_output_path", output_path)
+        if os.path.abspath(processed_output_path) == os.path.abspath(input_path):
+            raise HTTPException(status_code=500, detail="Processed output path resolved to raw input path")
+
+        # Upload processed (annotated) video to Cloudinary.
+        processed_video_url, processed_cloudinary_public_id = upload_video_to_cloudinary(
+            processed_output_path,
+            str(current_user["_id"]),
+            exercise,
+            side,
+            "processed",
         )
         
         # Save record to database
@@ -691,29 +718,44 @@ async def analyze_video(
             side=side,
             reps=stats.get("reps_completed", 0),
             detection_rate=stats["detection_rate"],
-            video_url=cloudinary_video_url,
-            cloudinary_public_id=cloudinary_public_id,
+            video_url=processed_video_url,
+            processed_video_url=processed_video_url,
+            raw_video_url=original_video_url,
+            original_video_url=original_video_url,
+            cloudinary_public_id=processed_cloudinary_public_id,
+            processed_cloudinary_public_id=processed_cloudinary_public_id,
+            raw_cloudinary_public_id=original_cloudinary_public_id,
+            original_cloudinary_public_id=original_cloudinary_public_id,
+            raw_video_size_bytes=os.path.getsize(input_path),
+            processed_video_size_bytes=os.path.getsize(processed_output_path),
         )
         await db.exercise_records.insert_one(record.dict())
         
         # Verify output exists
-        if not os.path.exists(output_path):
+        if not os.path.exists(processed_output_path):
             raise HTTPException(500, "Video processing failed - output file not created")
         
         # Return processed video with statistics in headers
         response = FileResponse(
-            output_path,
-            media_type="video/mp4",
-            filename=f"analyzed_{exercise}_{side}.mp4",
-            headers={
-                "X-Total-Frames": str(stats["total_frames"]),
-                "X-Pose-Detection-Rate": f"{stats['detection_rate']}%",
-                "X-Reps-Completed": str(stats.get("reps_completed", 0)),
-                "X-Exercise-Type": exercise,
-                "X-Analyzed-Side": side,
-                "X-Cloudinary-Video-Url": cloudinary_video_url,
-            }
-        )
+    processed_output_path,
+    media_type="video/mp4",
+    filename=f"analyzed_{exercise}_{side}.mp4",
+    headers={
+        "X-Total-Frames": str(stats["total_frames"]),
+        "X-Pose-Detection-Rate": f"{stats['detection_rate']}%",
+        "X-Reps-Completed": str(stats.get("reps_completed", 0)),
+        "X-Exercise-Type": exercise,
+        "X-Analyzed-Side": side,
+
+        # ✅ Clearly separated URLs
+        "X-Cloudinary-Processed-Video-Url": processed_video_url,   # mediapipe annotated
+        "X-Cloudinary-Original-Video-Url": original_video_url,     # raw upload
+
+        # ✅ Clearly separated sizes
+        "X-Raw-Video-Size": str(os.path.getsize(input_path)),
+        "X-Processed-Video-Size": str(os.path.getsize(processed_output_path)),
+    }
+)
         return response
     
     except HTTPException:
@@ -722,19 +764,6 @@ async def analyze_video(
         # Ensure cleanup on error
         cleanup_temp_files([input_path, output_path])
         raise HTTPException(500, f"Video processing failed: {str(e)}")
-
-
-@app.post("/exercise-record")
-async def save_exercise_record(
-    record: ExerciseRecordRequest,
-    current_user: dict = Depends(get_current_user)
-):
-    """Save exercise session record from the app"""
-    record_dict = record.dict()
-    record_dict["user_id"] = str(current_user["_id"])
-    record_dict["timestamp"] = datetime.utcnow()
-    await db.exercise_records.insert_one(record_dict)
-    return {"success": True, "message": "Record saved successfully"}
 
 @app.get('/fetch-history')
 async def fetch_history(
