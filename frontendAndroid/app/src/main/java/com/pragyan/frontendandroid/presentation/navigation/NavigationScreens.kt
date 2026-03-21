@@ -5,6 +5,7 @@ enum class NavigationScreens {
     RegisterScreen,
     DashboardScreen,
     ExerciseScreen,
+    HistoryScreen,
     SettingsScreen,
     UploadScreen,
     CameraScreen
