@@ -736,7 +736,6 @@ async def save_exercise_record(
     await db.exercise_records.insert_one(record_dict)
     return {"success": True, "message": "Record saved successfully"}
 
-@app.get('/user-history')
 @app.get('/fetch-history')
 async def fetch_history(
     exercise_type: Optional[str] = None,
@@ -812,7 +811,6 @@ def run_webcam(exercise_name: str, side: str = "left"):
     cap.release()
     cv2.destroyAllWindows()
 
-
 def main():
     """Enhanced command line interface"""
     print("\n" + "=" * 60)
@@ -845,7 +843,6 @@ def main():
         print("\nExiting gracefully...")
     finally:
         cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     main()
