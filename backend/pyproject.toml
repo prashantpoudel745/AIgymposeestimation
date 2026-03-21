@@ -12,6 +12,7 @@ dependencies = [
     "passlib[bcrypt]",
     "motor",
     "pydantic[email]",
+    "cloudinary",
     "mediapipe",
     "opencv-python-headless",
     "numpy"

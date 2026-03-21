@@ -4,7 +4,10 @@ import numpy as np
 import tempfile
 import os
 import uuid
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
+import cloudinary
+import cloudinary.uploader
+from cloudinary.exceptions import Error as CloudinaryError
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Request
 from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
 import shutil
@@ -12,9 +15,15 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import timedelta, datetime
-from database import db
-from models import UserCreate, UserInDB, UserOut, ExerciseRecord, ExerciseRecordRequest, Token, TokenData, LoginRequest
-from auth_utils import verify_password, get_password_hash, create_access_token, ALGORITHM, SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
+
+try:
+    from .database import db
+    from .models import UserCreate, UserInDB, UserOut, ExerciseRecord, ExerciseRecordRequest, Token, TokenData, LoginRequest
+    from .auth_utils import verify_password, get_password_hash, create_access_token, ALGORITHM, SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
+except ImportError:
+    from database import db
+    from models import UserCreate, UserInDB, UserOut, ExerciseRecord, ExerciseRecordRequest, Token, TokenData, LoginRequest
+    from auth_utils import verify_password, get_password_hash, create_access_token, ALGORITHM, SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
 from fastapi import Depends
 
 app = FastAPI(title="AI Gym Posture Correction API", version="2.0")
@@ -23,6 +32,18 @@ app = FastAPI(title="AI Gym Posture Correction API", version="2.0")
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
+
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
+
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+        secure=True,
+    )
 
 # ------------------ UTILITY FUNCTIONS ------------------ #
 
@@ -53,6 +74,34 @@ def cleanup_temp_files(file_paths: list):
                 os.remove(path)
         except Exception as e:
             print(f"Error cleaning up {path}: {str(e)}")
+
+
+def upload_video_to_cloudinary(video_path: str, user_id: str, exercise: str, side: str):
+    """Upload processed video to Cloudinary and return secure URL and public ID."""
+    if not (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET):
+        raise HTTPException(
+            status_code=500,
+            detail="Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.",
+        )
+
+    public_id = f"aigym/{user_id}/{exercise}_{side}_{uuid.uuid4().hex}"
+
+    try:
+        upload_result = cloudinary.uploader.upload_large(
+            video_path,
+            resource_type="video",
+            public_id=public_id,
+            overwrite=True,
+        )
+        secure_url = upload_result.get("secure_url")
+        uploaded_public_id = upload_result.get("public_id")
+
+        if not secure_url:
+            raise HTTPException(status_code=500, detail="Cloudinary upload succeeded but did not return video URL")
+
+        return secure_url, uploaded_public_id
+    except CloudinaryError as exc:
+        raise HTTPException(status_code=502, detail=f"Cloudinary upload failed: {str(exc)}")
 
 # ------------------ EXERCISE ANALYSIS ------------------ #
 
@@ -317,7 +366,7 @@ def process_video_file(input_path: str, output_path: str, exercise: str, side: s
 
 # ------------------ AUTHENTICATION ------------------ #
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -353,9 +402,27 @@ async def register(user: UserCreate):
     return created_user
 
 @app.post("/login", response_model=Token)
-async def login(form_data: LoginRequest):
-    user = await db.users.find_one({"email": form_data.email})
-    if not user or not verify_password(form_data.password, user["hashed_password"]):
+async def login(request: Request):
+    content_type = request.headers.get("content-type", "").lower()
+
+    email = None
+    password = None
+
+    if "application/json" in content_type:
+        payload = await request.json()
+        email = payload.get("email")
+        password = payload.get("password")
+    else:
+        form_data = await request.form()
+        email = form_data.get("email") or form_data.get("username")
+        password = form_data.get("password")
+
+    if not email or not password:
+        raise HTTPException(status_code=422, detail="Email/username and password are required")
+
+    user = await db.users.find_one({"email": email})
+    stored_hash = user.get("hashed_password") if user else None
+    if not user or not verify_password(password, stored_hash):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -367,7 +434,7 @@ async def login(form_data: LoginRequest):
 
 # ------------------ AUTHENTICATION ------------------ #
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -403,11 +470,47 @@ async def register(user: UserCreate):
     return created_user
 
 @app.post("/login", response_model=Token)
-async def login(form_data: LoginRequest):
-    user = await db.users.find_one({"email": form_data.email})
-    if not user or not verify_password(form_data.password, user["hashed_password"]):
+async def login(request: Request):
+    content_type = request.headers.get("content-type", "").lower()
+
+    email = None
+    password = None
+
+    if "application/json" in content_type:
+        payload = await request.json()
+        email = payload.get("email")
+        password = payload.get("password")
+    else:
+        form_data = await request.form()
+        email = form_data.get("email") or form_data.get("username")
+        password = form_data.get("password")
+
+    if not email or not password:
+        raise HTTPException(status_code=422, detail="Email/username and password are required")
+
+    user = await db.users.find_one({"email": email})
+    stored_hash = user.get("hashed_password") if user else None
+    if not user or not verify_password(password, stored_hash):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user["email"]}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/token", response_model=Token)
+async def token_login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """OAuth2-compatible login endpoint used by Swagger Authorize and OAuth clients."""
+    email = form_data.username
+    password = form_data.password
+
+    user = await db.users.find_one({"email": email})
+    stored_hash = user.get("hashed_password") if user else None
+    if not user or not verify_password(password, stored_hash):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user["email"]}, expires_delta=access_token_expires
@@ -572,6 +675,14 @@ async def analyze_video(
         
         # Process video
         stats = process_video_file(input_path, output_path, exercise, side)
+
+        # Upload processed video to Cloudinary
+        cloudinary_video_url, cloudinary_public_id = upload_video_to_cloudinary(
+            output_path,
+            str(current_user["_id"]),
+            exercise,
+            side,
+        )
         
         # Save record to database
         record = ExerciseRecord(
@@ -579,7 +690,9 @@ async def analyze_video(
             exercise_type=exercise,
             side=side,
             reps=stats.get("reps_completed", 0),
-            detection_rate=stats["detection_rate"]
+            detection_rate=stats["detection_rate"],
+            video_url=cloudinary_video_url,
+            cloudinary_public_id=cloudinary_public_id,
         )
         await db.exercise_records.insert_one(record.dict())
         
@@ -597,7 +710,8 @@ async def analyze_video(
                 "X-Pose-Detection-Rate": f"{stats['detection_rate']}%",
                 "X-Reps-Completed": str(stats.get("reps_completed", 0)),
                 "X-Exercise-Type": exercise,
-                "X-Analyzed-Side": side
+                "X-Analyzed-Side": side,
+                "X-Cloudinary-Video-Url": cloudinary_video_url,
             }
         )
         return response
