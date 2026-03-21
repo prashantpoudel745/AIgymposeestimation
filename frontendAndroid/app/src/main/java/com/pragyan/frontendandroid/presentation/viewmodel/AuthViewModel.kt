@@ -26,13 +26,18 @@ class AuthViewModel : ViewModel() {
     private val _authState = mutableStateOf<AuthState>(AuthState.Idle)
     val authState: State<AuthState> = _authState
 
+    companion object {
+        var accessToken: String? = null
+    }
+
     fun register(fullName: String, email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
                 val response = repository.register(RegisterRequest(fullName, email, password))
                 if (response.isSuccessful) {
-                    _authState.value = AuthState.Success(response.body()?.message ?: "Registration successful")
+                    accessToken = response.body()?.accessToken
+                    _authState.value = AuthState.Success("Registration successful")
                 } else {
                     _authState.value = AuthState.Error("Registration failed: ${response.message()}")
                 }
@@ -48,7 +53,8 @@ class AuthViewModel : ViewModel() {
             try {
                 val response = repository.login(LoginRequest(email, password))
                 if (response.isSuccessful) {
-                    _authState.value = AuthState.Success(response.body()?.message ?: "Login successful")
+                    accessToken = response.body()?.accessToken
+                    _authState.value = AuthState.Success("Login successful")
                 } else {
                     _authState.value = AuthState.Error("Login failed: ${response.message()}")
                 }

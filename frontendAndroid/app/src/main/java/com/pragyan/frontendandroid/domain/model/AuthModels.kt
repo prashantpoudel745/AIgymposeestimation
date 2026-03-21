@@ -1,7 +1,9 @@
 package com.pragyan.frontendandroid.domain.model
 
+import com.google.gson.annotations.SerializedName
+
 data class RegisterRequest(
-    val fullName: String,
+    @SerializedName("full_name") val fullName: String,
     val email: String,
     val password: String
 )
@@ -12,13 +14,13 @@ data class LoginRequest(
 )
 
 data class AuthResponse(
-    val message: String,
-    val token: String? = null,
+    @SerializedName("access_token") val accessToken: String,
+    @SerializedName("token_type") val tokenType: String,
     val user: User? = null
 )
 
 data class User(
-    val id: Int,
-    val fullName: String,
+    @SerializedName("_id") val id: String?,
+    @SerializedName("full_name") val fullName: String?,
     val email: String
 )

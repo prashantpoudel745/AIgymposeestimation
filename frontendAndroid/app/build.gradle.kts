@@ -74,10 +74,14 @@ dependencies {
 // CameraX View class
     implementation(libs.androidx.camera.view)
 
+// CameraX Video library
+    implementation(libs.androidx.camera.video)
+
 // WindowManager
     implementation(libs.androidx.window)
 
     // Retrofit
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
+    implementation(libs.okhttp)
 }
