@@ -22,7 +22,9 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.speech.tts.TextToSpeech
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.google.mediapipe.tasks.vision.core.RunningMode
@@ -34,9 +36,10 @@ import com.pragyan.frontendandroid.posture.PostureAnalyzer
 import kotlin.math.max
 import kotlin.math.min
 import androidx.core.graphics.toColorInt
+import java.util.Locale
 
 class OverlayView(context: Context?, attrs: AttributeSet?) :
-    View(context, attrs) {
+    View(context, attrs), TextToSpeech.OnInitListener {
 
     private var results: PoseLandmarkerResult? = null
     private var pointPaint = Paint()
@@ -54,6 +57,10 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
     private var stage: String = ""
     private var form: String = ""
     private var warning: String = ""
+    private var lastSpokenWarning: String = ""
+    private var lastSpeechTime: Long = 0
+
+    private var tts: TextToSpeech? = context?.let { TextToSpeech(it, this) }
 
     // Panel paints
     private lateinit var panelBgPaint: Paint
@@ -83,6 +90,24 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
 
     init {
         initPaints()
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            tts?.language = Locale.US
+        } else {
+            Log.e("TTS", "Initialization failed")
+        }
+    }
+
+    private fun speakWarning(message: String) {
+        val currentTime = System.currentTimeMillis()
+        // Throttling: Speak same warning only once every 3 seconds
+        if (message != lastSpokenWarning || (currentTime - lastSpeechTime) > 3000) {
+            tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, null)
+            lastSpokenWarning = message
+            lastSpeechTime = currentTime
+        }
     }
 
     fun clear() {
@@ -148,6 +173,12 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
         }
     }
 
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        tts?.stop()
+        tts?.shutdown()
+    }
+
     override fun draw(canvas: Canvas) {
         super.draw(canvas)
         results?.let { poseLandmarkerResult ->
@@ -186,43 +217,6 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
             }
         }
 
-        // ---------- TEXT OVERLAY ----------
-//        canvas.drawText(
-//            "Angle: ${angle ?: "--"}",
-//            50f,
-//            80f,
-//            textPaint
-//        )
-//
-//        canvas.drawText(
-//            "Stage: $stage",
-//            50f,
-//            150f,
-//            textPaint
-//        )
-//
-//        canvas.drawText(
-//            "Reps: ${postureAnalyzer.counter}",
-//            50f,
-//            220f,
-//            textPaint
-//        )
-//
-//        canvas.drawText(
-//            "Form: $form",
-//            50f,
-//            290f,
-//            textPaint
-//        )
-//
-//        if (warning.isNotEmpty()) {
-//            canvas.drawText(
-//                "Warning: $warning",
-//                50f,
-//                360f,
-//                textPaint
-//            )
-//        }
         drawInfoPanel(canvas)
     }
 
@@ -388,6 +382,10 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
             stage = s
             form = f
             warning = postureAnalyzer.formIssues.joinToString(", ")
+            
+            if (postureAnalyzer.formIssues.isNotEmpty()) {
+                speakWarning(postureAnalyzer.formIssues.first())
+            }
         }
 
         when (runningMode) {

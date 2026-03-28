@@ -11,16 +11,26 @@ import com.pragyan.frontendandroid.data.network.ExerciseApiService
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 class ExerciseViewModel : ViewModel() {
 
+    // Increased timeout to 5 minutes to prevent SocketTimeoutException during large video uploads
+    private val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(2, TimeUnit.MINUTES)
+        .writeTimeout(2, TimeUnit.MINUTES)
+        .build()
+
     private val apiService = Retrofit.Builder()
         .baseUrl("http://192.168.1.55:8000/")
+        .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(ExerciseApiService::class.java)
@@ -44,12 +54,11 @@ class ExerciseViewModel : ViewModel() {
                 
                 val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
                 
-                // Map numeric ID back to string type for backend compatibility
                 val exerciseType = when(exerciseId) {
                     1 -> "biceps_curl"
                     2 -> "triceps_pushdown"
                     3 -> "leg_press"
-                    4 -> "bench_press" // Note: Backend list: biceps_curl, deadlift, triceps_pushdown, leg_press
+                    4 -> "bench_press"
                     5 -> "deadlift"
                     else -> "biceps_curl"
                 }
@@ -64,7 +73,7 @@ class ExerciseViewModel : ViewModel() {
                     Log.d("ExerciseViewModel", "Analysis request successful. Record created by backend.")
                     _exerciseState.value = ExerciseState.Success("Exercise video uploaded and is being processed.")
                 } else {
-                    _exerciseState.value = ExerciseState.Error("Upload failed: ${analyzeResponse.code()}")
+                    _exerciseState.value = ExerciseState.Error("Upload failed: ${analyzeResponse.code()} ${analyzeResponse.message()}")
                 }
             } catch (e: Exception) {
                 Log.e("ExerciseViewModel", "Error uploading video", e)
