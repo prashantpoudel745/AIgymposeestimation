@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.pragyan.frontendandroid.config.NetworkConfig
 import com.pragyan.frontendandroid.data.network.AuthApiService
 import com.pragyan.frontendandroid.data.repository.AuthRepository
 import com.pragyan.frontendandroid.domain.model.AuthResponse
@@ -16,7 +17,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 class AuthViewModel : ViewModel() {
 
     private val apiService = Retrofit.Builder()
-        .baseUrl("http://192.168.1.55:8000/") // Use 10.0.2.2 for emulator to access host localhost
+        .baseUrl(NetworkConfig.API_BASE_URL)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(AuthApiService::class.java)

@@ -7,6 +7,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.pragyan.frontendandroid.config.NetworkConfig
 import com.pragyan.frontendandroid.data.network.ExerciseApiService
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -29,7 +30,7 @@ class ExerciseViewModel : ViewModel() {
         .build()
 
     private val apiService = Retrofit.Builder()
-        .baseUrl("http://192.168.1.55:8000/")
+        .baseUrl(NetworkConfig.API_BASE_URL)
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()

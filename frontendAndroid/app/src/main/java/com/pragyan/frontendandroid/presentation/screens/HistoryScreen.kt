@@ -25,6 +25,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
+import com.pragyan.frontendandroid.config.NetworkConfig
 import com.pragyan.frontendandroid.data.network.ExerciseApiService
 import com.pragyan.frontendandroid.domain.model.ExerciseRecord
 import com.pragyan.frontendandroid.presentation.components.BottomNavBar
@@ -36,7 +37,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 class HistoryViewModel : ViewModel() {
     private val apiService = Retrofit.Builder()
-        .baseUrl("http://192.168.1.55:8000/")
+        .baseUrl(NetworkConfig.API_BASE_URL)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(ExerciseApiService::class.java)
